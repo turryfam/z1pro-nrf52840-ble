@@ -1,0 +1,6 @@
+board:
+  name: zaopin_z1pro
+  full_name: Zaopin Z1 PRO experimental USB port
+  vendor: others
+  socs:
+    - name: nrf52840

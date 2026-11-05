@@ -1,0 +1,107 @@
+--- a/zmk/app/src/hog.c
++++ b/zmk/app/src/hog.c
+@@ -410,6 +410,9 @@
+ 
+ #if IS_ENABLED(CONFIG_ZMK_POINTING)
+ 
++#if IS_ENABLED(CONFIG_Z1PRO_LOW_LATENCY)
++#include <z1pro/low_latency_hog.inc>
++#else
+ K_MSGQ_DEFINE(zmk_hog_mouse_msgq, sizeof(struct zmk_hid_mouse_report_body),
+               CONFIG_ZMK_BLE_MOUSE_REPORT_QUEUE_SIZE, 4);
+ 
+@@ -460,6 +463,7 @@
+ 
+     return 0;
+ };
++#endif // CONFIG_Z1PRO_LOW_LATENCY
+ #endif // IS_ENABLED(CONFIG_ZMK_POINTING)
+ 
+ static int zmk_hog_init(void) {
+--- a/modules/custom/paw3395/src/paw3395.c
++++ b/modules/custom/paw3395/src/paw3395.c
+@@ -267,6 +267,16 @@
+ 
+ #if CONFIG_PAW3395_REPORT_INTERVAL_MIN > 0
+     int64_t now = k_uptime_get();
++#if defined(CONFIG_Z1PRO_LOW_LATENCY)
++    /* Read accumulated hardware motion at its report deadline, rather than
++     * consuming it early and leaving the last small movement unreported.
++     */
++    int64_t remaining=CONFIG_PAW3395_REPORT_INTERVAL_MIN-(now-data->last_rpt_time);
++    if (remaining>0) {
++        k_work_reschedule(&data->trigger_work,K_MSEC(remaining));
++        return -EAGAIN;
++    }
++#endif
+ #endif
+ 
+     int err = 0;
+@@ -302,7 +312,7 @@
+     data->dx += x;
+     data->dy += y;
+ 
+-#if CONFIG_PAW3395_REPORT_INTERVAL_MIN > 0
++#if CONFIG_PAW3395_REPORT_INTERVAL_MIN > 0 && !defined(CONFIG_Z1PRO_LOW_LATENCY)
+     // strict to report inerval
+     if (now - data->last_rpt_time < CONFIG_PAW3395_REPORT_INTERVAL_MIN) {
+         return 0;
+@@ -337,13 +347,24 @@
+     struct pixart_data *data = CONTAINER_OF(cb, struct pixart_data, irq_gpio_cb);
+     const struct device *dev = data->dev;
+     paw3395_set_interrupt(dev, false);
++#if defined(CONFIG_Z1PRO_LOW_LATENCY)
++    k_work_reschedule(&data->trigger_work,K_NO_WAIT);
++#else
+     k_work_submit(&data->trigger_work);
++#endif
+ }
+ 
+ static void paw3395_work_callback(struct k_work *work) {
++#if defined(CONFIG_Z1PRO_LOW_LATENCY)
++    struct pixart_data *data = CONTAINER_OF(k_work_delayable_from_work(work), struct pixart_data, trigger_work);
++#else
+     struct pixart_data *data = CONTAINER_OF(work, struct pixart_data, trigger_work);
++#endif
+     const struct device *dev = data->dev;
+-    paw3395_report_data(dev);
++    int result=paw3395_report_data(dev);
++#if defined(CONFIG_Z1PRO_LOW_LATENCY)
++    if (result==-EAGAIN) return;
++#endif
+     paw3395_set_interrupt(dev, true);
+ }
+ 
+@@ -406,7 +427,11 @@
+     data->init_retry_attempts = config->init_retry_count;
+ 
+     // init trigger handler work
++#if defined(CONFIG_Z1PRO_LOW_LATENCY)
++    k_work_init_delayable(&data->trigger_work,paw3395_work_callback);
++#else
+     k_work_init(&data->trigger_work, paw3395_work_callback);
++#endif
+ 
+     // init irq routine
+     err = paw3395_init_irq(dev);
+@@ -542,4 +567,4 @@
+ }
+ 
+ ZMK_LISTENER(zmk_paw3395_idle_sleeper, on_activity_state);
+-ZMK_SUBSCRIPTION(zmk_paw3395_idle_sleeper, zmk_activity_state_changed);
+\ No newline at end of file
++ZMK_SUBSCRIPTION(zmk_paw3395_idle_sleeper, zmk_activity_state_changed);
+--- a/modules/custom/paw3395/include/pixart.h
++++ b/modules/custom/paw3395/include/pixart.h
+@@ -26,7 +26,11 @@
+     bool                         sw_smart_flag; // for paw3395 smart algorithm
+ 
+     struct gpio_callback         irq_gpio_cb; // motion pin irq callback
++#if defined(CONFIG_Z1PRO_LOW_LATENCY)
++    struct k_work_delayable      trigger_work;
++#else
+     struct k_work                trigger_work; // realtrigger job
++#endif
+ 
+     struct k_work_delayable      init_work; // the work structure for delayable init steps
+     int                          async_init_step;

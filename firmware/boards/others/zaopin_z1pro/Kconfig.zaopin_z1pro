@@ -1,0 +1,3 @@
+config BOARD_ZAOPIN_Z1PRO
+    select SOC_NRF52840_QIAA
+    select ZMK_BOARD_COMPAT

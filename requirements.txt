@@ -1,0 +1,11 @@
+west>=1.2,<2
+cmake>=3.28,<4
+ninja
+pyyaml
+pyelftools
+packaging
+pykwalify
+six
+colorama
+intelhex
+setuptools

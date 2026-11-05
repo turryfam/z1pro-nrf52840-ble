@@ -1,0 +1,2 @@
+&factory_low { reg = <0x0 0x34000>; };
+&code_partition { reg = <0x34000 0x4b000>; };

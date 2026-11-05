@@ -1,0 +1,44 @@
+#include <behaviors.dtsi>
+#include <dt-bindings/zmk/bt.h>
+#include <dt-bindings/zmk/outputs.h>
+#include <dt-bindings/zmk/pointing.h>
+#include <zephyr/dt-bindings/input/input-event-codes.h>
+
+/ {
+    behaviors {
+        wheel_step: wheel_step {
+            compatible = "zmk,behavior-input-two-axis";
+            #binding-cells = <1>;
+            trigger-period-ms = <3>;
+            x-input-code = <INPUT_REL_HWHEEL>;
+            y-input-code = <INPUT_REL_WHEEL>;
+            time-to-max-speed-ms = <100>;
+            acceleration-exponent = <0>;
+        };
+        wheel_rotate: wheel_rotate {
+            compatible = "zmk,behavior-sensor-rotate";
+            #sensor-binding-cells = <0>;
+            bindings = <&wheel_step MOVE_Y(-37)>, <&wheel_step MOVE_Y(37)>;
+            tap-ms = <65>;
+        };
+    };
+    mouse_input_listener {
+        compatible = "zmk,input-listener";
+        device = <&mou0>;
+    };
+    wheel_input_listener {
+        compatible = "zmk,input-listener";
+        device = <&wheel_step>;
+    };
+    keymap {
+        compatible = "zmk,keymap";
+        base {
+            bindings = <&mkp LCLK &mkp RCLK &mkp MCLK &mkp MB4 &mkp MB5 &mo 1>;
+            sensor-bindings = <&wheel_rotate>;
+        };
+        controls {
+            bindings = <&out OUT_BLE &out OUT_USB &bt BT_CLR &bt BT_PRV &bt BT_NXT &trans>;
+            sensor-bindings = <&wheel_rotate>;
+        };
+    };
+};

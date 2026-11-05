@@ -1,0 +1,6 @@
+name: z1pro-port
+build:
+  cmake: .
+  kconfig: Kconfig
+  settings:
+    board_root: .

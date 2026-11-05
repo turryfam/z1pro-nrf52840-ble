@@ -1,0 +1,5 @@
+zephyr_library()
+zephyr_library_compile_definitions(Z1PRO_WITH_ZMK)
+zephyr_library_sources(src/usb_lab.c)
+zephyr_include_directories(include)
+zephyr_library_sources_ifdef(CONFIG_Z1PRO_LOW_LATENCY src/low_latency_queue.c)

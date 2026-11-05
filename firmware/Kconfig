@@ -1,0 +1,5 @@
+menu "Z1 PRO experimental adaptation"
+config Z1PRO_LOW_LATENCY
+    bool "Z1PRO bounded, coalescing BLE mouse queue"
+    default y
+endmenu
